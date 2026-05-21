@@ -1,0 +1,54 @@
+{
+  "sample_topics": [
+    {
+      "name": "Photosynthesis",
+      "description": "How plants convert sunlight into energy",
+      "category": "Biology"
+    },
+    {
+      "name": "Python Programming",
+      "description": "Basics of Python programming language",
+      "category": "Computer Science"
+    },
+    {
+      "name": "World War II",
+      "description": "Key events and consequences of WWII",
+      "category": "History"
+    },
+    {
+      "name": "Mitochondria",
+      "description": "The powerhouse of the cell",
+      "category": "Biology"
+    },
+    {
+      "name": "Democracy",
+      "description": "Understanding democratic systems",
+      "category": "Political Science"
+    },
+    {
+      "name": "Calculus Basics",
+      "description": "Introduction to differential and integral calculus",
+      "category": "Mathematics"
+    },
+    {
+      "name": "DNA Structure",
+      "description": "Understanding the double helix and genetics",
+      "category": "Biology"
+    },
+    {
+      "name": "Shakespeare",
+      "description": "Life and works of William Shakespeare",
+      "category": "Literature"
+    },
+    {
+      "name": "Climate Change",
+      "description": "Causes and effects of climate change",
+      "category": "Environmental Science"
+    },
+    {
+      "name": "Renaissance",
+      "description": "The period of cultural and artistic revival",
+      "category": "History"
+    }
+  ]
+}
