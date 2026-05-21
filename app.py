@@ -43,6 +43,24 @@ st.markdown("""
         border-radius: 8px;
         margin: 0.5rem 0;
     }
+    /* Make clickable Streamlit widgets show hand cursor */
+button,
+.stButton > button,
+div[data-baseweb="select"],
+div[data-baseweb="select"] *,
+div[data-testid="stSelectbox"],
+div[data-testid="stSelectbox"] *,
+div[data-testid="stSlider"],
+div[data-testid="stSlider"] *,
+input[type="range"] {
+    cursor: pointer !important;
+}
+
+/* Text input should still show normal typing cursor */
+input[type="text"],
+textarea {
+    cursor: text !important;
+}
     </style>
 """, unsafe_allow_html=True)
 
