@@ -30,26 +30,146 @@ init_database()
 # Custom CSS for better UI
 st.markdown("""
     <style>
-    .main {
-        padding: 2rem;
+    /* Full app background */
+    .stApp {
+        background:
+            radial-gradient(circle at top left, rgba(255, 75, 92, 0.16), transparent 35%),
+            radial-gradient(circle at top right, rgba(112, 96, 255, 0.14), transparent 35%),
+            linear-gradient(135deg, #090b12 0%, #10131f 45%, #090b12 100%);
+        color: #f5f7fb;
     }
 
-    .stButton>button {
+    /* Smooth page entrance */
+    .block-container {
+        animation: fadeSlideIn 0.55s ease-in-out;
+        padding-top: 2rem;
+    }
+
+    @keyframes fadeSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(14px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Sidebar styling */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #171923 0%, #10131f 100%);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Buttons */
+    .stButton > button,
+    .stDownloadButton > button {
         width: 100%;
-        border-radius: 8px;
-        font-weight: 600;
+        border-radius: 14px;
+        font-weight: 700;
+        border: 1px solid rgba(255, 75, 92, 0.45);
+        background: linear-gradient(135deg, #ff4b5c 0%, #b83280 55%, #6c5ce7 100%);
+        color: white;
+        box-shadow: 0 0 18px rgba(255, 75, 92, 0.25);
+        transition: all 0.22s ease-in-out;
+        position: relative;
+        overflow: hidden;
     }
 
-    .metric-card {
-        background-color: #f0f2f6;
+    .stButton > button:hover,
+    .stDownloadButton > button:hover {
+        transform: translateY(-2px) scale(1.01);
+        box-shadow: 0 0 26px rgba(255, 75, 92, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.55);
+    }
+
+    .stButton > button:active,
+    .stDownloadButton > button:active {
+        transform: scale(0.98);
+    }
+
+    /* Inputs and dropdowns */
+    input,
+    textarea,
+    div[data-baseweb="select"] {
+        border-radius: 12px !important;
+    }
+
+    div[data-baseweb="select"] > div {
+        background-color: #1f2330 !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    }
+
+    /* Tabs */
+    button[data-baseweb="tab"] {
+        font-weight: 700;
+        transition: all 0.2s ease-in-out;
+    }
+
+    button[data-baseweb="tab"]:hover {
+        color: #ff4b5c !important;
+        transform: translateY(-1px);
+    }
+
+    /* Metric cards */
+    div[data-testid="stMetric"] {
+        background: rgba(255, 255, 255, 0.045);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         padding: 1rem;
-        border-radius: 8px;
-        margin: 0.5rem 0;
+        border-radius: 18px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        transition: all 0.22s ease-in-out;
+    }
+
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-3px);
+        border-color: rgba(255, 75, 92, 0.45);
+        box-shadow: 0 10px 30px rgba(255, 75, 92, 0.18);
+    }
+
+    /* Dataframe/table polish */
+    div[data-testid="stDataFrame"] {
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* File uploader polish */
+    section[data-testid="stFileUploader"] {
+        border: 1px dashed rgba(255, 75, 92, 0.55);
+        border-radius: 18px;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.035);
+        transition: all 0.22s ease-in-out;
+    }
+
+    section[data-testid="stFileUploader"]:hover {
+        box-shadow: 0 0 24px rgba(255, 75, 92, 0.22);
+        transform: translateY(-2px);
+    }
+
+    /* Alert boxes slightly rounded */
+    div[data-testid="stAlert"] {
+        border-radius: 16px;
+        animation: softPop 0.35s ease-in-out;
+    }
+
+    @keyframes softPop {
+        from {
+            opacity: 0;
+            transform: scale(0.98);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
 
     /* Make clickable Streamlit widgets show hand cursor */
     button,
     .stButton > button,
+    .stDownloadButton > button,
     div[data-baseweb="select"],
     div[data-baseweb="select"] *,
     div[data-testid="stSelectbox"],
@@ -65,8 +185,162 @@ st.markdown("""
     textarea {
         cursor: text !important;
     }
+
+
+
+@keyframes floatBlob {
+    0% {
+        transform: translateY(0px) translateX(0px) scale(1);
+    }
+    25% {
+        transform: translateY(-20px) translateX(15px) scale(1.05);
+    }
+    50% {
+        transform: translateY(10px) translateX(-18px) scale(0.96);
+    }
+    75% {
+        transform: translateY(-12px) translateX(10px) scale(1.03);
+    }
+    100% {
+        transform: translateY(0px) translateX(0px) scale(1);
+    }
+}
+
+/* Make sure main content stays above blobs */
+.block-container {
+    position: relative;
+    z-index: 1;
+}
+
+section[data-testid="stSidebar"] {
+    position: relative;
+    z-index: 2;
+}
+
+/* Animated AI background layer */
+.ai-bg-blob,
+.ai-bg-line {
+    position: fixed;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Stronger visible floating blobs */
+.ai-bg-blob {
+    border-radius: 50%;
+    filter: blur(55px);
+    opacity: 0.14;
+    animation: blobFloat 20s ease-in-out infinite alternate;
+}
+
+.ai-blob-1 {
+    width: 280px;
+    height: 280px;
+    background: #ff4b5c;
+    top: 9%;
+    left: 6%;
+    animation-delay: 0s;
+}
+
+.ai-blob-2 {
+    width: 330px;
+    height: 330px;
+    background: #6c5ce7;
+    top: 30%;
+    right: 5%;
+    animation-delay: 1.5s;
+}
+
+.ai-blob-3 {
+    width: 240px;
+    height: 240px;
+    background: #00c2ff;
+    bottom: 10%;
+    left: 32%;
+    animation-delay: 3s;
+}
+
+@keyframes blobFloat {
+    0% {
+        transform: translate(0px, 0px) scale(1);
+    }
+    50% {
+        transform: translate(55px, -45px) scale(1.12);
+    }
+    100% {
+        transform: translate(-35px, 45px) scale(0.95);
+    }
+}
+
+/* Floating neon lines */
+.ai-bg-line {
+    width: 160px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255, 75, 92, 0.85), transparent);
+    opacity: 0.45;
+    animation: lineFloat 11s linear infinite;
+}
+
+.ai-line-1 {
+    top: 18%;
+    left: -180px;
+    animation-delay: 0s;
+}
+
+.ai-line-2 {
+    top: 46%;
+    left: -220px;
+    animation-delay: 3s;
+    background: linear-gradient(90deg, transparent, rgba(108, 92, 231, 0.85), transparent);
+}
+
+.ai-line-3 {
+    top: 72%;
+    left: -260px;
+    animation-delay: 6s;
+    background: linear-gradient(90deg, transparent, rgba(0, 194, 255, 0.85), transparent);
+}
+
+@keyframes lineFloat {
+    0% {
+        transform: translateX(0) rotate(-12deg);
+        opacity: 0;
+    }
+    15% {
+        opacity: 0.55;
+    }
+    85% {
+        opacity: 0.55;
+    }
+    100% {
+        transform: translateX(130vw) rotate(-12deg);
+        opacity: 0;
+    }
+}
+
+/* Keep actual app content above animations */
+.block-container {
+    position: relative;
+    z-index: 2;
+}
+
+section[data-testid="stSidebar"] {
+    position: relative;
+    z-index: 3;
+}
     </style>
 """, unsafe_allow_html=True)
+
+st.markdown("""
+<div class="ai-bg-blob ai-blob-1"></div>
+<div class="ai-bg-blob ai-blob-2"></div>
+<div class="ai-bg-blob ai-blob-3"></div>
+
+<div class="ai-bg-line ai-line-1"></div>
+<div class="ai-bg-line ai-line-2"></div>
+<div class="ai-bg-line ai-line-3"></div>
+""", unsafe_allow_html=True)
+
 
 
 def load_sample_topics():
