@@ -671,7 +671,6 @@ def render_flashcards(materials):
                     st.session_state.current_card += 1
                     st.rerun()
 
-
 def render_quiz(materials):
     """Render quiz section with scoring."""
     st.subheader("🧪 Quiz Questions")
@@ -688,6 +687,11 @@ def render_quiz(materials):
     if "quiz_progress_saved" not in st.session_state:
         st.session_state.quiz_progress_saved = False
 
+    if "quiz_run_id" not in st.session_state:
+        st.session_state.quiz_run_id = 0
+
+    unanswered_questions = []
+
     # Display questions
     for i, question in enumerate(questions):
         st.write(f"**Question {i + 1}**: {question['question']}")
@@ -695,17 +699,28 @@ def render_quiz(materials):
         response = st.radio(
             label="Select your answer:",
             options=question["options"],
-            key=f"q_{i}",
+            index=None,
+            key=f"q_{st.session_state.quiz_run_id}_{i}",
             label_visibility="collapsed"
         )
 
         st.session_state.quiz_responses[i] = response
+
+        if response is None:
+            unanswered_questions.append(i + 1)
+
         st.write("---")
 
     # Submit button
     if st.button("📊 Submit Quiz", type="primary"):
-        st.session_state.quiz_submitted = True
-        st.rerun()
+        if unanswered_questions:
+            st.warning(
+                f"Please answer all questions before submitting. "
+                f"Missing: {', '.join(map(str, unanswered_questions))}"
+            )
+        else:
+            st.session_state.quiz_submitted = True
+            st.rerun()
 
     # Show results if submitted
     if st.session_state.quiz_submitted:
@@ -721,7 +736,6 @@ def render_quiz(materials):
                 st.error(f"❌ Question {i + 1}: Incorrect")
                 st.write(f"Correct answer: {question['correct_answer']}")
 
-                # Safe explanation fallback
                 explanation = question.get(
                     "explanation",
                     "Review the explanation, flashcards, and key points for this topic to strengthen your understanding."
@@ -730,7 +744,6 @@ def render_quiz(materials):
 
         percentage = (score / len(questions)) * 100
 
-        # Display score with color coding
         col1, col2, col3 = st.columns(3)
 
         with col1:
@@ -1062,6 +1075,7 @@ def main():
                         st.session_state.quiz_responses = {}
                         st.session_state.quiz_submitted = False
                         st.session_state.quiz_progress_saved = False
+                        st.session_state.quiz_run_id = st.session_state.get("quiz_run_id", 0) + 1
 
                         # Reset flashcard state for fresh flashcards
                         st.session_state.current_card = 0
@@ -1162,5 +1176,8 @@ if __name__ == "__main__":
 
     if "quiz_progress_saved" not in st.session_state:
         st.session_state.quiz_progress_saved = False
+    
+    if "quiz_run_id" not in st.session_state:
+        st.session_state.quiz_run_id = 0
 
     main()
