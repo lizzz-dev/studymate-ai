@@ -9,6 +9,7 @@ using rule-based offline content generation.
 import streamlit as st
 import json
 import random
+import re
 from datetime import datetime
 from utils.generator import StudyMaterialGenerator
 from utils.database import init_database, save_progress, get_progress_history, get_progress_summary
@@ -102,6 +103,230 @@ def suggest_random_topic():
     topic = random.choice(sample_topics)
     st.session_state.topic_input = topic
     st.session_state.selected_sample_topic = topic
+
+
+def read_uploaded_text_file(uploaded_file):
+    """Read text from an uploaded .txt or .md file safely."""
+    if uploaded_file is None:
+        return None, None
+
+    try:
+        file_name = uploaded_file.name
+        raw_bytes = uploaded_file.getvalue()
+
+        try:
+            text = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            text = raw_bytes.decode("latin-1")
+
+        text = text.strip()
+
+        if not text:
+            return None, "The uploaded file is empty. Please upload a file with study notes."
+
+        if len(text) < 50:
+            return None, "The uploaded file is too short. Please upload more detailed study material."
+
+        return {
+            "file_name": file_name,
+            "text": text
+        }, None
+
+    except Exception as e:
+        return None, f"Could not read uploaded file: {e}"
+
+
+def split_study_sentences(text):
+    """Split uploaded study material into useful sentence-like chunks."""
+    cleaned = text.replace("\t", " ").strip()
+
+    # Remove common report/header lines that should not become key points
+    lines = cleaned.splitlines()
+    useful_lines = []
+
+    skip_phrases = [
+        "STUDYMATE AI",
+        "STUDY NOTES",
+        "Generated:",
+        "Student:",
+        "Source Type:",
+        "File Name:",
+        "Topic:",
+        "Difficulty:",
+        "EXPLANATION",
+        "KEY POINTS",
+        "FLASHCARDS",
+        "QUIZ QUESTIONS",
+        "==========",
+        "----------"
+    ]
+
+    for line in lines:
+        line = line.strip()
+
+        if not line:
+            continue
+
+        if any(phrase.lower() in line.lower() for phrase in skip_phrases):
+            continue
+
+        if set(line) in [{"="}, {"-"}, {"_"}]:
+            continue
+
+        useful_lines.append(line)
+
+    cleaned = " ".join(useful_lines)
+
+    parts = re.split(r"(?<=[.!?])\s+|\n+", cleaned)
+
+    sentences = []
+    for part in parts:
+        sentence = part.strip(" -•\n\r\t")
+
+        if len(sentence) > 25:
+            sentences.append(sentence)
+
+    if not sentences:
+        words = cleaned.split()
+        chunks = []
+
+        for i in range(0, len(words), 30):
+            chunk = " ".join(words[i:i + 30]).strip()
+
+            if len(chunk) > 25:
+                chunks.append(chunk)
+
+        sentences = chunks
+
+    return sentences[:60]
+
+
+def sample_with_replacement(items, count):
+    """Return requested number of items, repeating only if needed."""
+    if not items:
+        return []
+
+    if count <= len(items):
+        return random.sample(items, count)
+
+    selected = items[:]
+    while len(selected) < count:
+        selected.append(random.choice(items))
+
+    random.shuffle(selected)
+    return selected[:count]
+
+
+def make_uploaded_file_options(correct_answer, all_facts):
+    """Create simple multiple-choice options from uploaded file facts."""
+    wrong_pool = []
+
+    for fact in all_facts:
+        if fact != correct_answer and fact not in wrong_pool and len(fact) > 20:
+            wrong_pool.append(fact)
+
+    fallback_wrong = [
+        "This is not directly supported by the uploaded material.",
+        "This is a common misunderstanding of the uploaded notes.",
+        "This answer is too general and misses the main idea.",
+        "This option does not match the uploaded study material.",
+        "This point is unrelated to the uploaded file."
+    ]
+
+    while len(wrong_pool) < 3:
+        wrong_answer = random.choice(fallback_wrong)
+        if wrong_answer not in wrong_pool:
+            wrong_pool.append(wrong_answer)
+
+    options = [correct_answer] + random.sample(wrong_pool, 3)
+    random.shuffle(options)
+    return options
+
+
+def generate_materials_from_uploaded_file(file_name, file_text, difficulty, num_flashcards, num_questions):
+    """Generate study materials from uploaded student notes."""
+    sentences = split_study_sentences(file_text)
+
+    if not sentences:
+        sentences = [
+            "The uploaded material contains important study information.",
+            "Students should review the uploaded notes carefully.",
+            "Key ideas can be turned into flashcards and quiz questions."
+        ]
+
+    source_title = f"Uploaded File: {file_name}"
+
+    explanation_sentences = sentences[:min(5, len(sentences))]
+    explanation = " ".join(explanation_sentences)
+
+    key_point_count = min(12, len(sentences))
+    key_points = sentences[:key_point_count]
+
+    flashcards = []
+    selected_flashcard_facts = sample_with_replacement(sentences, num_flashcards)
+
+    for index, fact in enumerate(selected_flashcard_facts, start=1):
+        question_templates = [
+            f"What important idea is explained in this part of {file_name}?",
+            f"According to the uploaded notes, what should you remember from point {index}?",
+            f"How would you summarize this uploaded-note idea?",
+            f"What is a key takeaway from the uploaded material?",
+            f"What should a student recall from this section of the file?"
+        ]
+
+        flashcards.append({
+            "id": index,
+            "question": random.choice(question_templates),
+            "answer": fact
+        })
+
+    quiz = []
+    selected_quiz_facts = sample_with_replacement(sentences, num_questions)
+
+    for index, correct_fact in enumerate(selected_quiz_facts, start=1):
+        quiz_question_templates = [
+            f"Which statement is supported by the uploaded file '{file_name}'?",
+            f"Based on the uploaded notes, which option is correct?",
+            f"What does the uploaded study material say?",
+            f"Which point best matches the uploaded notes?",
+            f"What should the student remember from the uploaded file?"
+        ]
+
+        quiz.append({
+            "id": index,
+            "question": random.choice(quiz_question_templates),
+            "options": make_uploaded_file_options(correct_fact, sentences),
+            "correct_answer": correct_fact,
+            "explanation": "This answer was selected from the uploaded study material."
+        })
+
+    notes = f"""
+StudyMate AI Notes From Uploaded File
+
+Source: {file_name}
+Difficulty: {difficulty}
+
+Explanation:
+{explanation}
+
+Key Points:
+{chr(10).join("- " + point for point in key_points)}
+"""
+
+    return {
+        "topic": source_title,
+        "difficulty": difficulty,
+        "explanation": explanation,
+        "key_points": key_points,
+        "flashcards": flashcards,
+        "quiz": quiz,
+        "quiz_questions": quiz,
+        "notes": notes,
+        "study_notes": notes,
+        "summary": explanation,
+        "source_type": "Uploaded File",
+        "file_name": file_name
+    }
 
 
 def render_explanation(materials):
@@ -279,12 +504,17 @@ def download_study_notes(materials):
     """Generate and offer download of study notes."""
     st.subheader("📥 Download Study Notes")
 
+    source_type = materials.get("source_type", "Typed Topic")
+    file_name = materials.get("file_name", "N/A")
+
     # Format notes as text
     notes = f"""
 STUDYMATE AI - STUDY NOTES
 ==========================
 
 Student: {get_student_label()}
+Source Type: {source_type}
+File Name: {file_name}
 Topic: {materials['topic']}
 Difficulty: {materials['difficulty']}
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -312,11 +542,13 @@ KEY POINTS
         for opt in q["options"]:
             notes += f"   • {opt}\n"
 
+    safe_topic_name = materials["topic"].replace(" ", "_").replace(":", "").replace("/", "_").replace("\\", "_")
+
     # Download button
     st.download_button(
         label="⬇️ Download as Text File",
         data=notes,
-        file_name=f"studymate_{materials['topic'].replace(' ', '_')}.txt",
+        file_name=f"studymate_{safe_topic_name}.txt",
         mime="text/plain"
     )
 
@@ -454,6 +686,24 @@ def main():
             if st.session_state.get("topic_input"):
                 st.info(f"📌 Using topic: **{st.session_state.topic_input}**")
 
+            st.markdown("### 📄 Or upload your own study material")
+            uploaded_file = st.file_uploader(
+                "Upload a .txt or .md file with your notes",
+                type=["txt", "md"],
+                help="Upload your own notes and StudyMate AI will generate explanation, flashcards, quiz questions, and downloadable notes from it."
+            )
+
+            uploaded_data = None
+
+            if uploaded_file is not None:
+                uploaded_data, upload_error = read_uploaded_text_file(uploaded_file)
+
+                if upload_error:
+                    st.error(upload_error)
+                else:
+                    st.success(f"✅ Uploaded file detected: **{uploaded_data['file_name']}**")
+                    st.caption("Uploaded file mode will be used when you click Generate Study Materials.")
+
         with col2:
             st.subheader("📋 Sample Topics")
 
@@ -501,13 +751,18 @@ def main():
             # Get topic from session state
             user_topic = st.session_state.get("topic_input", "")
 
-            # Validate input
-            is_valid, error_msg = validate_topic(user_topic)
+            # Check if user uploaded a file
+            uploaded_data = None
+            upload_error = None
 
-            if not is_valid:
-                st.error(error_msg)
-            else:
-                # Validate parameters
+            if "uploaded_file" in locals() and uploaded_file is not None:
+                uploaded_data, upload_error = read_uploaded_text_file(uploaded_file)
+
+            if upload_error:
+                st.error(upload_error)
+
+            elif uploaded_data:
+                # Validate parameters only; typed topic is optional when a file is uploaded
                 fc_valid, fc_error = validate_num_flashcards(num_flashcards)
                 q_valid, q_error = validate_num_questions(num_questions)
 
@@ -516,10 +771,11 @@ def main():
                 elif not q_valid:
                     st.error(q_error)
                 else:
-                    # Generate materials
-                    with st.spinner(f"🔄 Generating study materials for '{user_topic}'..."):
-                        materials = StudyMaterialGenerator.generate_all_materials(
-                            topic=user_topic,
+                    # Generate materials from uploaded file
+                    with st.spinner(f"🔄 Generating study materials from '{uploaded_data['file_name']}'..."):
+                        materials = generate_materials_from_uploaded_file(
+                            file_name=uploaded_data["file_name"],
+                            file_text=uploaded_data["text"],
                             difficulty=difficulty,
                             num_flashcards=num_flashcards,
                             num_questions=num_questions
@@ -539,11 +795,57 @@ def main():
 
                         st.rerun()
 
+            else:
+                # Validate typed topic input
+                is_valid, error_msg = validate_topic(user_topic)
+
+                if not is_valid:
+                    st.error(error_msg)
+                else:
+                    # Validate parameters
+                    fc_valid, fc_error = validate_num_flashcards(num_flashcards)
+                    q_valid, q_error = validate_num_questions(num_questions)
+
+                    if not fc_valid:
+                        st.error(fc_error)
+                    elif not q_valid:
+                        st.error(q_error)
+                    else:
+                        # Generate materials from typed topic
+                        with st.spinner(f"🔄 Generating study materials for '{user_topic}'..."):
+                            materials = StudyMaterialGenerator.generate_all_materials(
+                                topic=user_topic,
+                                difficulty=difficulty,
+                                num_flashcards=num_flashcards,
+                                num_questions=num_questions
+                            )
+
+                            st.session_state.materials = materials
+                            st.session_state.show_materials = True
+
+                            # Reset quiz state for fresh quiz
+                            st.session_state.quiz_responses = {}
+                            st.session_state.quiz_submitted = False
+                            st.session_state.quiz_progress_saved = False
+
+                            # Reset flashcard state for fresh flashcards
+                            st.session_state.current_card = 0
+                            st.session_state.flipped = [False] * len(materials["flashcards"])
+
+                            st.rerun()
+
         # Display generated materials if available
         if st.session_state.get("show_materials") and st.session_state.get("materials"):
             materials = st.session_state.materials
 
-            st.success(f"✅ Study materials generated for **{materials['topic']}** ({materials['difficulty'].upper()})")
+            source_type = materials.get("source_type", "Typed Topic")
+            file_name = materials.get("file_name", "")
+
+            if source_type == "Uploaded File":
+                st.success(f"✅ Study materials generated from uploaded file: **{file_name}** ({materials['difficulty'].upper()})")
+            else:
+                st.success(f"✅ Study materials generated for **{materials['topic']}** ({materials['difficulty'].upper()})")
+
             st.divider()
 
             # Tab interface for different content types
